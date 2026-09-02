@@ -32,8 +32,9 @@ class CheckResult:
     label: str
     status: str          # "done" | "weak" | "missing"
     detail: str
-    weight: int           # how much this factor counts toward the overall score
-    fixable: bool = True  # False for things like review score, which reflect reception
+    weight: int            # how much this factor counts toward the overall score
+    advice: str = ""       # longer, actionable guidance - only set when status isn't "done"
+    fixable: bool = True   # False for things like review score, which reflect reception
 
 
 # (weight, fixable) per factor - screenshots and trailer weighted highest
@@ -49,6 +50,60 @@ WEIGHTS = {
     "reviews": 20,
 }
 
+# Longer, actionable guidance shown alongside a weak/missing checklist item.
+# Kept separate from the short `detail` diagnosis above so the score-driving
+# logic never has to change to update this wording.
+ADVICE = {
+    "capsule_art": (
+        "This is the very first thing people see, in search results and store "
+        "listings, before they even reach your page. Without one, your game "
+        "looks unfinished or abandoned at a glance. Use a high-contrast image "
+        "showing your most recognizable character, scene, or color palette — "
+        "avoid dense text, it goes illegible at thumbnail size."
+    ),
+    "screenshots_weak": (
+        "Add 3-5 more so the set together shows: (1) actual gameplay, not "
+        "menus, (2) variety — different areas, enemies, or moments, since "
+        "near-identical shots read as 'short or repetitive game,' (3) your "
+        "single most striking visual as shot #1 or #2, since most browsers "
+        "judge from the first couple before scrolling."
+    ),
+    "screenshots_missing": (
+        "A visitor deciding whether to look further needs at least 5-8 images "
+        "to judge the game at all. Lead with your best or most unusual moment, "
+        "then spread the rest across different parts of the game."
+    ),
+    "trailer": (
+        "This is usually the single biggest gap, because both stores give "
+        "trailers better placement in their discovery feeds, and most buyers "
+        "will watch 15 seconds of gameplay before reading a paragraph. It "
+        "doesn't need polish — a raw 30-60 second gameplay clip with real "
+        "audio, showing 2-3 different moments, beats having none."
+    ),
+    "tags": (
+        "Tags control who ever sees your page, before a human judges it — "
+        "under-tagging costs you visibility regardless of how good the page "
+        "itself is. Fill in every genuinely accurate tag, including specific "
+        "ones (art style, a defining mechanic, platform) not just broad genre "
+        "labels."
+    ),
+    "description": (
+        "A thin description leaves visitors guessing what makes the game "
+        "worth their time. Cover: what you actually do minute-to-minute, what "
+        "makes it different from similar games, and 2-3 concrete specifics (a "
+        "number, a mechanic, a setting detail) rather than only mood words "
+        "like 'immersive' or 'epic.'"
+    ),
+    "reviews": (
+        "This isn't something to fix directly on the page — it reflects what "
+        "people who've already played think. If it's early or thin, the "
+        "highest-leverage move is usually strengthening the page itself "
+        "(screenshots, trailer, description) so the players who do arrive are "
+        "the right audience for the game — that's what tends to produce good "
+        "reviews, not the other way around."
+    ),
+}
+
 
 def _status_score(status: str) -> float:
     return {"done": 1.0, "weak": 0.5, "missing": 0.0}[status]
@@ -61,49 +116,50 @@ def check_capsule_art(data: dict) -> CheckResult:
         "done" if ok else "missing",
         "Present." if ok else "No capsule or cover image found on the page.",
         WEIGHTS["capsule_art"],
+        advice="" if ok else ADVICE["capsule_art"],
     )
 
 
 def check_screenshots(data: dict) -> CheckResult:
     n = data.get("screenshot_count", 0)
     if n >= 8:
-        status, detail = "done", f"{n} screenshots - comfortably above the 8+ that well-performing pages tend to show."
+        status, detail, advice = "done", f"{n} screenshots - comfortably above the 8+ that well-performing pages tend to show.", ""
     elif n >= 4:
-        status, detail = "weak", f"{n} screenshots - readable, but pages with 8+ typically convert better."
+        status, detail, advice = "weak", f"{n} screenshots - readable, but pages with 8+ typically convert better.", ADVICE["screenshots_weak"]
     else:
-        status, detail = "missing", f"Only {n} screenshot(s) - too few for a visitor to judge the game."
-    return CheckResult("screenshots", "Screenshot count", status, detail, WEIGHTS["screenshots"])
+        status, detail, advice = "missing", f"Only {n} screenshot(s) - too few for a visitor to judge the game.", ADVICE["screenshots_missing"]
+    return CheckResult("screenshots", "Screenshot count", status, detail, WEIGHTS["screenshots"], advice=advice)
 
 
 def check_trailer(data: dict) -> CheckResult:
     n = data.get("trailer_count", 0)
     if n >= 1:
-        status, detail = "done", f"{n} trailer(s)/video(s) present."
+        status, detail, advice = "done", f"{n} trailer(s)/video(s) present.", ""
     else:
-        status, detail = "missing", "No trailer or gameplay video found - this is usually the single biggest gap."
-    return CheckResult("trailer", "Trailer / video", status, detail, WEIGHTS["trailer"])
+        status, detail, advice = "missing", "No trailer or gameplay video found - this is usually the single biggest gap.", ADVICE["trailer"]
+    return CheckResult("trailer", "Trailer / video", status, detail, WEIGHTS["trailer"], advice=advice)
 
 
 def check_tags(data: dict) -> CheckResult:
     n = data.get("tag_count", 0)
     if n >= 4:
-        status, detail = "done", f"{n} tags/genres set - enough for the store's discovery algorithms to place the game well."
+        status, detail, advice = "done", f"{n} tags/genres set - enough for the store's discovery algorithms to place the game well.", ""
     elif n >= 2:
-        status, detail = "weak", f"Only {n} tags/genres set - worth filling out further."
+        status, detail, advice = "weak", f"Only {n} tags/genres set - worth filling out further.", ADVICE["tags"]
     else:
-        status, detail = "missing", f"{n} tags/genres set - close to invisible to genre-based discovery."
-    return CheckResult("tags", "Tag / genre coverage", status, detail, WEIGHTS["tags"])
+        status, detail, advice = "missing", f"{n} tags/genres set - close to invisible to genre-based discovery.", ADVICE["tags"]
+    return CheckResult("tags", "Tag / genre coverage", status, detail, WEIGHTS["tags"], advice=advice)
 
 
 def check_description(data: dict) -> CheckResult:
     n = data.get("description_length", 0)
     if n >= 800:
-        status, detail = "done", f"~{n} characters - enough room to actually sell the game."
+        status, detail, advice = "done", f"~{n} characters - enough room to actually sell the game.", ""
     elif n >= 200:
-        status, detail = "weak", f"~{n} characters - present but thin."
+        status, detail, advice = "weak", f"~{n} characters - present but thin.", ADVICE["description"]
     else:
-        status, detail = "missing", f"~{n} characters - barely more than a tagline."
-    return CheckResult("description", "Description length", status, detail, WEIGHTS["description"])
+        status, detail, advice = "missing", f"~{n} characters - barely more than a tagline.", ADVICE["description"]
+    return CheckResult("description", "Description length", status, detail, WEIGHTS["description"], advice=advice)
 
 
 def check_reviews(data: dict) -> CheckResult:
@@ -113,15 +169,15 @@ def check_reviews(data: dict) -> CheckResult:
         return CheckResult(
             "reviews", "Reviews", "missing",
             "No reviews yet - normal before/just after launch, but there's nothing here yet for buyers to judge by.",
-            WEIGHTS["reviews"], fixable=False,
+            WEIGHTS["reviews"], advice=ADVICE["reviews"], fixable=False,
         )
     if count >= 50 and (ratio or 0) >= 0.70:
-        status, detail = "done", f"{count} reviews, {round((ratio or 0) * 100)}% positive."
+        status, detail, advice = "done", f"{count} reviews, {round((ratio or 0) * 100)}% positive.", ""
     elif count >= 10:
-        status, detail = "weak", f"{count} reviews, {round((ratio or 0) * 100)}% positive - a thin or mixed signal so far."
+        status, detail, advice = "weak", f"{count} reviews, {round((ratio or 0) * 100)}% positive - a thin or mixed signal so far.", ADVICE["reviews"]
     else:
-        status, detail = "missing", f"Only {count} review(s) so far - too few to read as a signal either way."
-    return CheckResult("reviews", "Reviews", status, detail, WEIGHTS["reviews"], fixable=False)
+        status, detail, advice = "missing", f"Only {count} review(s) so far - too few to read as a signal either way.", ADVICE["reviews"]
+    return CheckResult("reviews", "Reviews", status, detail, WEIGHTS["reviews"], advice=advice, fixable=False)
 
 
 CHECKS = [check_capsule_art, check_screenshots, check_trailer, check_tags, check_description, check_reviews]
@@ -143,7 +199,7 @@ def score_page(data: dict) -> dict:
         "title": data.get("title", "Untitled"),
         "overall_score": overall,
         "checklist": [r.__dict__ for r in results],
-        "ranked_fixes": [{"label": r.label, "detail": r.detail} for r in fixes],
+        "ranked_fixes": [{"label": r.label, "detail": r.detail, "advice": r.advice} for r in fixes],
     }
 
 
