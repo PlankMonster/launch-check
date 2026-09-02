@@ -34,6 +34,7 @@
   .dot.done{background:var(--done);} .dot.weak{background:var(--weak);} .dot.missing{background:var(--missing);}
   .check b{display:block;}
   .check span{color:var(--ink-soft);font-size:.92rem;}
+  .advice{display:block;color:var(--muted);font-size:.88rem;font-style:italic;margin-top:.35rem;}
   h2{font-size:1rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:2rem 0 .5rem;}
   .fix{padding:.6rem 0;border-bottom:1px solid var(--line);}
   .fix b{display:block;} .fix span{color:var(--ink-soft);font-size:.92rem;}
@@ -77,11 +78,11 @@ f.addEventListener('submit', async (e) => {
     const cl = document.getElementById('checklist');
     cl.innerHTML = data.checklist.map(c => `
       <div class="check"><div class="dot ${c.status}"></div>
-        <div><b>${c.label}</b><span>${c.detail}</span></div></div>
+        <div><b>${c.label}</b><span>${c.detail}</span>${c.advice ? `<span class="advice">${c.advice}</span>` : ''}</div></div>
     `).join('');
     const fx = document.getElementById('fixes');
     fx.innerHTML = data.ranked_fixes.length
-      ? data.ranked_fixes.map(f => `<div class="fix"><b>${f.label}</b><span>${f.detail}</span></div>`).join('')
+      ? data.ranked_fixes.map(f => `<div class="fix"><b>${f.label}</b><span>${f.detail}</span>${f.advice ? `<span class="advice">${f.advice}</span>` : ''}</div>`).join('')
       : '<p class="hint">Nothing to fix - every checked factor is in good shape.</p>';
     report.style.display = 'block';
   } catch (e2) {
