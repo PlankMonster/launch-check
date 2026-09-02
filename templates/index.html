@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Launch Check</title>
+<style>
+  :root{
+    --paper:#eceef0; --surface:#ffffff; --ink:#1c1f1e; --ink-soft:#454b52; --muted:#6d747a;
+    --line:#cdd2d1; --accent:#2d3f66; --done:#2f6d4a; --weak:#b0791f; --missing:#a3312a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#14171a; --surface:#1c2126; --ink:#e7eaec; --ink-soft:#bcc4c8; --muted:#899398;
+      --line:#2b3237; --accent:#8ca0cc; --done:#75bd93; --weak:#e0ac66; --missing:#df8177;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--paper);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;line-height:1.55;}
+  .wrap{max-width:640px;margin:0 auto;padding:3rem 1.25rem 5rem;}
+  h1{font-size:1.9rem;margin:0 0 .3rem;}
+  p.lede{color:var(--ink-soft);margin:0 0 2rem;}
+  form{display:flex;gap:.5rem;margin-bottom:.5rem;}
+  input[type=text]{flex:1;padding:.7rem .9rem;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font-size:1rem;}
+  button{padding:.7rem 1.3rem;border:none;border-radius:6px;background:var(--accent);color:#fff;font-size:1rem;cursor:pointer;}
+  button:disabled{opacity:.6;cursor:default;}
+  .hint{font-size:.85rem;color:var(--muted);margin:0 0 2rem;}
+  .error{color:var(--missing);margin-bottom:1rem;}
+  #report{display:none;}
+  .score{font-size:3rem;font-weight:800;margin:0;}
+  .score-label{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem;}
+  .check{display:flex;gap:.7rem;padding:.8rem 0;border-bottom:1px solid var(--line);align-items:flex-start;}
+  .dot{width:10px;height:10px;border-radius:50%;margin-top:.4rem;flex-shrink:0;}
+  .dot.done{background:var(--done);} .dot.weak{background:var(--weak);} .dot.missing{background:var(--missing);}
+  .check b{display:block;}
+  .check span{color:var(--ink-soft);font-size:.92rem;}
+  h2{font-size:1rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:2rem 0 .5rem;}
+  .fix{padding:.6rem 0;border-bottom:1px solid var(--line);}
+  .fix b{display:block;} .fix span{color:var(--ink-soft);font-size:.92rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Launch Check</h1>
+  <p class="lede">Paste your Steam or itch.io store page. Get back a scored report on what's holding it back.</p>
+  <form id="f">
+    <input type="text" id="url" placeholder="https://store.steampowered.com/app/... or https://you.itch.io/game" required>
+    <button id="go">Check my page</button>
+  </form>
+  <p class="hint">No account needed. Nothing is saved.</p>
+  <div class="error" id="error"></div>
+  <div id="report">
+    <p class="score" id="score"></p>
+    <p class="score-label" id="scoreLabel"></p>
+    <h2>Checklist</h2>
+    <div id="checklist"></div>
+    <h2>Fixes ranked by impact</h2>
+    <div id="fixes"></div>
+  </div>
+</div>
+<script>
+const f = document.getElementById('f');
+f.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = document.getElementById('url').value.trim();
+  const go = document.getElementById('go');
+  const err = document.getElementById('error');
+  const report = document.getElementById('report');
+  err.textContent = ''; report.style.display = 'none';
+  go.disabled = true; go.textContent = 'Checking...';
+  try {
+    const res = await fetch('/analyze?url=' + encodeURIComponent(url));
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Something went wrong.'; return; }
+    document.getElementById('score').textContent = data.overall_score + '/100';
+    document.getElementById('scoreLabel').textContent = data.title;
+    const cl = document.getElementById('checklist');
+    cl.innerHTML = data.checklist.map(c => `
+      <div class="check"><div class="dot ${c.status}"></div>
+        <div><b>${c.label}</b><span>${c.detail}</span></div></div>
+    `).join('');
+    const fx = document.getElementById('fixes');
+    fx.innerHTML = data.ranked_fixes.length
+      ? data.ranked_fixes.map(f => `<div class="fix"><b>${f.label}</b><span>${f.detail}</span></div>`).join('')
+      : '<p class="hint">Nothing to fix - every checked factor is in good shape.</p>';
+    report.style.display = 'block';
+  } catch (e2) {
+    err.textContent = 'Something went wrong reaching the server.';
+  } finally {
+    go.disabled = false; go.textContent = 'Check my page';
+  }
+});
+</script>
+</body>
+</html>
