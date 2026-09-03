@@ -22,7 +22,13 @@ def is_itchio_url(url: str) -> bool:
 def fetch_page(url: str) -> BeautifulSoup:
     r = requests.get(url, headers=HEADERS, timeout=10)
     r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
+    # Parse from the raw response bytes, not r.text - requests guesses
+    # r.text's encoding from the HTTP headers alone, which is wrong often
+    # enough to garble accented/non-English titles (e.g. "Brutal Legend"
+    # with an umlaut coming out as "BrÃ¼tal Legend"). BeautifulSoup's own
+    # bytes-based parsing sniffs the page's own <meta charset> tag too,
+    # which is what actually gets this right.
+    return BeautifulSoup(r.content, "html.parser")
 
 
 def normalize(soup: BeautifulSoup, url: str) -> dict:
