@@ -9,26 +9,47 @@ account or an API key - that only comes in later for a creator's own
 private stats (see the build brief).
 """
 
+import re
+
 import requests
 from bs4 import BeautifulSoup
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (LaunchCheck/1.0)"}
+
+_CHARSET_RE = re.compile(rb'<meta[^>]+charset=["\']?\s*([\w-]+)', re.IGNORECASE)
 
 
 def is_itchio_url(url: str) -> bool:
     return "itch.io" in url
 
 
+def _decode_html(raw: bytes) -> str:
+    """Decode the page's raw bytes using its own declared charset (read
+    directly from its <meta charset=...> tag with a plain regex), rather
+    than trusting requests' r.text (guesses purely from HTTP headers - itch
+    pages don't send a charset there, so this guesses wrong and garbles
+    accented/non-English titles) or a library's automatic byte-sniffing
+    (BeautifulSoup's own detection, tried first, behaved correctly on one
+    Python/OS combination and produced corrupted "replacement character"
+    text on another - not something to depend on). A plain regex + explicit
+    .decode() call is standard-library behavior with nothing
+    version/platform-dependent about it, so it should behave identically
+    everywhere this app runs."""
+    m = _CHARSET_RE.search(raw[:4096])
+    encodings = [m.group(1).decode("ascii", "ignore")] if m else []
+    encodings += ["utf-8", "cp1252"]
+    for enc in encodings:
+        try:
+            return raw.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def fetch_page(url: str) -> BeautifulSoup:
     r = requests.get(url, headers=HEADERS, timeout=10)
     r.raise_for_status()
-    # Parse from the raw response bytes, not r.text - requests guesses
-    # r.text's encoding from the HTTP headers alone, which is wrong often
-    # enough to garble accented/non-English titles (e.g. "Brutal Legend"
-    # with an umlaut coming out as "BrÃ¼tal Legend"). BeautifulSoup's own
-    # bytes-based parsing sniffs the page's own <meta charset> tag too,
-    # which is what actually gets this right.
-    return BeautifulSoup(r.content, "html.parser")
+    return BeautifulSoup(_decode_html(r.content), "html.parser")
 
 
 def normalize(soup: BeautifulSoup, url: str) -> dict:
