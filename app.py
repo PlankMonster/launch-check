@@ -41,6 +41,9 @@ def analyze():
             data = steam.fetch_and_normalize(appid)
             if data is None:
                 return jsonify({"error": "Couldn't find that app on Steam - check the link."}), 404
+            if data.get("steam_type") != "game":
+                label = steam.describe_non_game_type(data["steam_type"])
+                return jsonify({"error": f"This looks like {label} on Steam, not a full game store page - Launch Check grades full game listings, so a score here wouldn't be meaningful."}), 400
             details = steam.fetch_appdetails(appid)
             similar = steam.fetch_similar_normalized(details, appid, limit=5)
 

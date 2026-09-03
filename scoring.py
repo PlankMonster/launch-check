@@ -109,6 +109,13 @@ def _status_score(status: str) -> float:
     return {"done": 1.0, "weak": 0.5, "missing": 0.0}[status]
 
 
+def _count_word(n: int, singular: str, plural: str) -> str:
+    """"1 screenshot" not "1 screenshot(s)" - the literal "(s)" read as
+    broken/unfinished copy at n == 1, which is a common case (most
+    checklist items that aren't "done" sit right at 0 or 1)."""
+    return f"{n} {singular}" if n == 1 else f"{n} {plural}"
+
+
 def check_capsule_art(data: dict) -> CheckResult:
     ok = bool(data.get("has_capsule_art"))
     return CheckResult(
@@ -139,7 +146,7 @@ def check_screenshots(data: dict, similar_avg: float | None = None) -> CheckResu
         status, detail = "weak", f"{n} screenshots - readable, but pages with 8+ typically convert better."
         advice = _with_similar_avg_prefix(ADVICE["screenshots_weak"], "screenshots", n, similar_avg)
     else:
-        status, detail = "missing", f"Only {n} screenshot(s) - too few for a visitor to judge the game."
+        status, detail = "missing", f"Only {_count_word(n, 'screenshot', 'screenshots')} - too few for a visitor to judge the game."
         advice = _with_similar_avg_prefix(ADVICE["screenshots_missing"], "screenshots", n, similar_avg)
     return CheckResult("screenshots", "Screenshot count", status, detail, WEIGHTS["screenshots"], advice=advice)
 
@@ -147,7 +154,7 @@ def check_screenshots(data: dict, similar_avg: float | None = None) -> CheckResu
 def check_trailer(data: dict) -> CheckResult:
     n = data.get("trailer_count", 0)
     if n >= 1:
-        status, detail, advice = "done", f"{n} trailer(s)/video(s) present.", ""
+        status, detail, advice = "done", f"{_count_word(n, 'trailer/video', 'trailers/videos')} present.", ""
     else:
         status, detail, advice = "missing", "No trailer or gameplay video found - this is usually the single biggest gap.", ADVICE["trailer"]
     return CheckResult("trailer", "Trailer / video", status, detail, WEIGHTS["trailer"], advice=advice)
@@ -161,7 +168,7 @@ def check_tags(data: dict, similar_avg: float | None = None) -> CheckResult:
         status, detail = "weak", f"Only {n} tags/genres set - worth filling out further."
         advice = _with_similar_avg_prefix(ADVICE["tags"], "tags", n, similar_avg)
     else:
-        status, detail = "missing", f"{n} tags/genres set - close to invisible to genre-based discovery."
+        status, detail = "missing", f"{_count_word(n, 'tag/genre', 'tags/genres')} set - close to invisible to genre-based discovery."
         advice = _with_similar_avg_prefix(ADVICE["tags"], "tags", n, similar_avg)
     return CheckResult("tags", "Tag / genre coverage", status, detail, WEIGHTS["tags"], advice=advice)
 
@@ -191,7 +198,7 @@ def check_reviews(data: dict) -> CheckResult:
     elif count >= 10:
         status, detail, advice = "weak", f"{count} reviews, {round((ratio or 0) * 100)}% positive - a thin or mixed signal so far.", ADVICE["reviews"]
     else:
-        status, detail, advice = "missing", f"Only {count} review(s) so far - too few to read as a signal either way.", ADVICE["reviews"]
+        status, detail, advice = "missing", f"Only {_count_word(count, 'review', 'reviews')} so far - too few to read as a signal either way.", ADVICE["reviews"]
     return CheckResult("reviews", "Reviews", status, detail, WEIGHTS["reviews"], advice=advice, fixable=False)
 
 
