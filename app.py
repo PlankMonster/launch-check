@@ -54,8 +54,9 @@ def analyze():
     except Exception as exc:  # keep the first slice's error handling simple and visible
         return jsonify({"error": f"Couldn't read that page right now ({exc})."}), 502
 
-    report = score_page(data)
-    report["comparison"] = compare(data, similar) if similar else None
+    comparison = compare(data, similar) if similar else None
+    report = score_page(data, comparison)
+    report["comparison"] = comparison
     return jsonify(report)
 
 

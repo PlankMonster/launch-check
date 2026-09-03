@@ -120,14 +120,27 @@ def check_capsule_art(data: dict) -> CheckResult:
     )
 
 
-def check_screenshots(data: dict) -> CheckResult:
+def _with_similar_avg_prefix(base_advice: str, noun: str, n: int, similar_avg: float | None) -> str:
+    """Lead with the real similar-games number when it actually makes the
+    point (the average is higher than this game's own count) - falls back
+    to the fixed wording untouched when there's nothing to compare against
+    (e.g. itch.io, which has no similar-games search yet) or when the
+    average wouldn't reinforce the point anyway."""
+    if similar_avg is not None and similar_avg > n:
+        return f"Similar games in this comparison average {similar_avg} {noun} - you have {n}. " + base_advice
+    return base_advice
+
+
+def check_screenshots(data: dict, similar_avg: float | None = None) -> CheckResult:
     n = data.get("screenshot_count", 0)
     if n >= 8:
         status, detail, advice = "done", f"{n} screenshots - comfortably above the 8+ that well-performing pages tend to show.", ""
     elif n >= 4:
-        status, detail, advice = "weak", f"{n} screenshots - readable, but pages with 8+ typically convert better.", ADVICE["screenshots_weak"]
+        status, detail = "weak", f"{n} screenshots - readable, but pages with 8+ typically convert better."
+        advice = _with_similar_avg_prefix(ADVICE["screenshots_weak"], "screenshots", n, similar_avg)
     else:
-        status, detail, advice = "missing", f"Only {n} screenshot(s) - too few for a visitor to judge the game.", ADVICE["screenshots_missing"]
+        status, detail = "missing", f"Only {n} screenshot(s) - too few for a visitor to judge the game."
+        advice = _with_similar_avg_prefix(ADVICE["screenshots_missing"], "screenshots", n, similar_avg)
     return CheckResult("screenshots", "Screenshot count", status, detail, WEIGHTS["screenshots"], advice=advice)
 
 
@@ -140,14 +153,16 @@ def check_trailer(data: dict) -> CheckResult:
     return CheckResult("trailer", "Trailer / video", status, detail, WEIGHTS["trailer"], advice=advice)
 
 
-def check_tags(data: dict) -> CheckResult:
+def check_tags(data: dict, similar_avg: float | None = None) -> CheckResult:
     n = data.get("tag_count", 0)
     if n >= 4:
         status, detail, advice = "done", f"{n} tags/genres set - enough for the store's discovery algorithms to place the game well.", ""
     elif n >= 2:
-        status, detail, advice = "weak", f"Only {n} tags/genres set - worth filling out further.", ADVICE["tags"]
+        status, detail = "weak", f"Only {n} tags/genres set - worth filling out further."
+        advice = _with_similar_avg_prefix(ADVICE["tags"], "tags", n, similar_avg)
     else:
-        status, detail, advice = "missing", f"{n} tags/genres set - close to invisible to genre-based discovery.", ADVICE["tags"]
+        status, detail = "missing", f"{n} tags/genres set - close to invisible to genre-based discovery."
+        advice = _with_similar_avg_prefix(ADVICE["tags"], "tags", n, similar_avg)
     return CheckResult("tags", "Tag / genre coverage", status, detail, WEIGHTS["tags"], advice=advice)
 
 
@@ -180,11 +195,22 @@ def check_reviews(data: dict) -> CheckResult:
     return CheckResult("reviews", "Reviews", status, detail, WEIGHTS["reviews"], advice=advice, fixable=False)
 
 
-CHECKS = [check_capsule_art, check_screenshots, check_trailer, check_tags, check_description, check_reviews]
+def score_page(data: dict, comparison: dict | None = None) -> dict:
+    # Pull the similar-games averages out up front so the checks below can
+    # fold a real number into their advice text instead of only fixed
+    # wording - comparison is None whenever there was nothing to compare
+    # against (e.g. itch.io), in which case every check falls back cleanly.
+    screenshot_avg = comparison["screenshot_count"]["similar_avg"] if comparison else None
+    tag_avg = comparison["tag_count"]["similar_avg"] if comparison else None
 
-
-def score_page(data: dict) -> dict:
-    results = [check(data) for check in CHECKS]
+    results = [
+        check_capsule_art(data),
+        check_screenshots(data, screenshot_avg),
+        check_trailer(data),
+        check_tags(data, tag_avg),
+        check_description(data),
+        check_reviews(data),
+    ]
     total_weight = sum(r.weight for r in results)
     earned = sum(r.weight * _status_score(r.status) for r in results)
     overall = round(100 * earned / total_weight) if total_weight else 0
