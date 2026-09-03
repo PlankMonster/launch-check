@@ -5,92 +5,394 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Launch Check</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
   :root{
-    --paper:#eceef0; --surface:#ffffff; --ink:#1c1f1e; --ink-soft:#454b52; --muted:#6d747a;
-    --line:#cdd2d1; --accent:#2d3f66; --done:#2f6d4a; --weak:#b0791f; --missing:#a3312a;
+    --paper:#eef1f0; --surface:#ffffff; --surface-2:#e4e8e6;
+    --ink:#141a19; --ink-soft:#3f4a48; --muted:#6f7a78;
+    --line:#d7dbda; --line-strong:#b7bfbd;
+    --accent:#1f6f6a; --accent-soft:#e2efed; --accent-ink:#f3faf9;
+    --good:#3f7d52; --good-soft:#e7f1e9;
+    --warn:#9c6b1f; --warn-soft:#f5ecd9;
+    --bad:#a13f36; --bad-soft:#f6e6e4;
   }
   @media (prefers-color-scheme: dark){
-    :root{
-      --paper:#14171a; --surface:#1c2126; --ink:#e7eaec; --ink-soft:#bcc4c8; --muted:#899398;
-      --line:#2b3237; --accent:#8ca0cc; --done:#75bd93; --weak:#e0ac66; --missing:#df8177;
+    :root:not([data-theme="light"]){
+      --paper:#0f1413; --surface:#161d1c; --surface-2:#1d2523;
+      --ink:#e7ece9; --ink-soft:#b7c1be; --muted:#7e8a87;
+      --line:#293230; --line-strong:#39433f;
+      --accent:#5fb3ac; --accent-soft:#17302d; --accent-ink:#0c1615;
+      --good:#7bc492; --good-soft:#16281c;
+      --warn:#e0b25c; --warn-soft:#2e2612;
+      --bad:#e28679; --bad-soft:#301a17;
     }
   }
+  :root[data-theme="dark"]{
+    --paper:#0f1413; --surface:#161d1c; --surface-2:#1d2523; --ink:#e7ece9;
+    --ink-soft:#b7c1be; --muted:#7e8a87; --line:#293230; --line-strong:#39433f;
+    --accent:#5fb3ac; --accent-soft:#17302d; --accent-ink:#0c1615;
+    --good:#7bc492; --good-soft:#16281c; --warn:#e0b25c; --warn-soft:#2e2612;
+    --bad:#e28679; --bad-soft:#301a17;
+  }
+
   *{box-sizing:border-box;}
-  body{background:var(--paper);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;line-height:1.55;}
-  .wrap{max-width:640px;margin:0 auto;padding:3rem 1.25rem 5rem;}
-  h1{font-size:1.9rem;margin:0 0 .3rem;}
-  p.lede{color:var(--ink-soft);margin:0 0 2rem;}
-  form{display:flex;gap:.5rem;margin-bottom:.5rem;}
-  input[type=text]{flex:1;padding:.7rem .9rem;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font-size:1rem;}
-  button{padding:.7rem 1.3rem;border:none;border-radius:6px;background:var(--accent);color:#fff;font-size:1rem;cursor:pointer;}
-  button:disabled{opacity:.6;cursor:default;}
-  .hint{font-size:.85rem;color:var(--muted);margin:0 0 2rem;}
-  .error{color:var(--missing);margin-bottom:1rem;}
-  #report{display:none;}
-  .score{font-size:3rem;font-weight:800;margin:0;}
-  .score-label{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem;}
-  .check{display:flex;gap:.7rem;padding:.8rem 0;border-bottom:1px solid var(--line);align-items:flex-start;}
-  .dot{width:10px;height:10px;border-radius:50%;margin-top:.4rem;flex-shrink:0;}
-  .dot.done{background:var(--done);} .dot.weak{background:var(--weak);} .dot.missing{background:var(--missing);}
-  .check b{display:block;}
-  .check span{color:var(--ink-soft);font-size:.92rem;}
-  .advice{display:block;color:var(--muted);font-size:.88rem;font-style:italic;margin-top:.35rem;}
-  h2{font-size:1rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:2rem 0 .5rem;}
-  .fix{padding:.6rem 0;border-bottom:1px solid var(--line);}
-  .fix b{display:block;} .fix span{color:var(--ink-soft);font-size:.92rem;}
-  .disclaimer{margin-top:3rem;font-size:.78rem;color:var(--muted);}
+  body{
+    background:var(--paper); color:var(--ink); margin:0;
+    font-family:'Hanken Grotesk',system-ui,sans-serif; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+  .wrap{max-width:720px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+
+  /* masthead */
+  .masthead{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1.6rem;flex-wrap:wrap;}
+  .wordmark{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;}
+  .wordmark .dot{color:var(--accent);}
+  .tagline{font-size:.82rem;color:var(--muted);}
+
+  /* input bar - the tool itself is the hero, not a marketing block */
+  .checker{background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:1.1rem 1.1rem 1rem;margin-bottom:1rem;}
+  .checker-row{display:flex;gap:.6rem;}
+  .checker input{
+    flex:1;padding:.7rem .85rem;border:1px solid var(--line-strong);border-radius:7px;
+    background:var(--paper);color:var(--ink);font-family:'JetBrains Mono';font-size:.86rem;
+  }
+  .checker input::placeholder{color:var(--muted);}
+  .checker button{
+    padding:.7rem 1.15rem;border:none;border-radius:7px;background:var(--accent);color:var(--accent-ink);
+    font-family:'Hanken Grotesk';font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap;
+  }
+  .checker button:hover{filter:brightness(1.05);}
+  .checker button:disabled{opacity:.6;cursor:default;filter:none;}
+
+  .howitworks{
+    display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:.9rem;padding-top:.85rem;border-top:1px solid var(--line);
+  }
+  .howitworks .step{display:flex;gap:.5rem;align-items:baseline;font-size:.78rem;color:var(--muted);}
+  .howitworks .step b{font-family:'JetBrains Mono';color:var(--accent);font-weight:600;}
+  .howitworks .step a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent);}
+
+  /* stated plainly, up front - not buried in a footer disclaimer */
+  .trust-strip{
+    display:flex;gap:1.3rem;flex-wrap:wrap;margin-bottom:1rem;
+    font-family:'JetBrains Mono';font-size:.74rem;color:var(--ink-soft);
+  }
+  .trust-strip span{display:flex;align-items:center;gap:.4rem;}
+  .trust-strip .tick{color:var(--good);font-weight:700;}
+
+  /* result states */
+  #result{display:none;}
+  #result.visible{display:block;}
+
+  .error-card{
+    background:var(--surface);border:1px solid var(--bad);border-radius:10px;
+    padding:1.1rem 1.3rem;display:flex;gap:.8rem;align-items:flex-start;margin-bottom:1rem;
+  }
+  .error-card .emark{
+    font-family:'JetBrains Mono';font-weight:700;color:var(--bad);background:var(--bad-soft);
+    width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:.8rem;flex-shrink:0;margin-top:.1rem;
+  }
+  .error-card p{margin:0;font-size:.9rem;color:var(--ink-soft);}
+  .error-card p strong{color:var(--ink);}
+
+  /* report */
+  .report{background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;}
+  .report-head{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;
+    padding:1.2rem 1.3rem;border-bottom:1px solid var(--line);
+  }
+  .report-head .title{font-size:1.15rem;font-weight:700;margin:0 0 .3rem;}
+  .report-head .source{font-size:.78rem;color:var(--muted);}
+  .report-head .source a{color:var(--accent);text-decoration:none;}
+  .score-tile{text-align:right;flex-shrink:0;}
+  .score-tile .num{font-family:'JetBrains Mono';font-size:1.9rem;font-weight:700;line-height:1;}
+  .score-tile .num.good{color:var(--good);} .score-tile .num.warn{color:var(--warn);} .score-tile .num.bad{color:var(--bad);}
+  .score-tile .denom{font-family:'JetBrains Mono';font-size:.9rem;color:var(--muted);}
+  .score-tile .verdict{font-size:.76rem;color:var(--muted);margin-top:.2rem;}
+
+  .provenance{
+    display:flex;align-items:center;gap:.5rem;padding:.6rem 1.3rem;background:var(--accent-soft);
+    font-size:.78rem;color:var(--ink-soft);border-bottom:1px solid var(--line);
+  }
+  .provenance .pdot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+
+  .checklist{padding:.3rem 0;}
+  .crow{display:grid;grid-template-columns:4px 1fr;gap:0 1rem;padding:.95rem 1.3rem;border-bottom:1px solid var(--line);}
+  .crow:last-child{border-bottom:none;}
+  .crow .stripe{border-radius:2px;align-self:stretch;}
+  .crow.good .stripe{background:var(--good);} .crow.warn .stripe{background:var(--warn);} .crow.bad .stripe{background:var(--bad);}
+  .crow-main{min-width:0;}
+  .crow-top{display:flex;align-items:center;gap:.55rem;margin-bottom:.25rem;flex-wrap:wrap;}
+  .crow-label{font-weight:700;font-size:.94rem;}
+  .pill{
+    font-family:'JetBrains Mono';font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;
+    padding:.15rem .45rem;border-radius:20px;font-weight:600;
+  }
+  .pill.good{background:var(--good-soft);color:var(--good);}
+  .pill.warn{background:var(--warn-soft);color:var(--warn);}
+  .pill.bad{background:var(--bad-soft);color:var(--bad);}
+  .crow-detail{font-size:.87rem;color:var(--ink-soft);}
+  .crow-advice{
+    margin-top:.5rem;padding:.6rem .75rem;background:var(--surface-2);border-radius:6px;
+    font-size:.83rem;color:var(--ink-soft);
+  }
+
+  /* comparison table - only rendered when the source provides similar-games data */
+  .compare{padding:1.1rem 1.3rem 1.3rem;border-top:1px solid var(--line);}
+  .compare h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 .7rem;font-weight:600;}
+  table.cmp{width:100%;border-collapse:collapse;font-size:.86rem;}
+  table.cmp th{text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;padding-bottom:.5rem;border-bottom:1px solid var(--line);}
+  table.cmp td{padding:.5rem 0;border-bottom:1px solid var(--line);}
+  table.cmp tr:last-child td{border-bottom:none;}
+  table.cmp td.num{font-family:'JetBrains Mono';text-align:right;}
+  table.cmp td.num.behind{color:var(--warn);}
+
+  /* fixes panel */
+  .fixes-block{background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:1.2rem 1.3rem;margin-top:1rem;}
+  .fixes-block h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 .3rem;font-weight:600;}
+  .fix-row{padding:.75rem 0;border-bottom:1px solid var(--line);}
+  .fix-row:last-child{border-bottom:none;}
+  .fix-row b{display:block;font-size:.94rem;}
+  .fix-row span{font-size:.87rem;color:var(--ink-soft);}
+  .fixes-empty{font-size:.87rem;color:var(--muted);padding:.4rem 0 0;}
+
+  /* methodology */
+  .methodology-block{background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:1.2rem 1.3rem;margin-top:1.6rem;}
+  .methodology-block h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 .8rem;font-weight:600;}
+  .mrow{display:grid;grid-template-columns:1fr auto auto;gap:0 1rem;padding:.55rem 0;border-bottom:1px solid var(--line);font-size:.86rem;align-items:baseline;}
+  .mrow:last-of-type{border-bottom:none;}
+  .mrow .mname{color:var(--ink-soft);}
+  .mrow .mweight{font-family:'JetBrains Mono';color:var(--muted);font-size:.78rem;}
+  .mrow .mbar{width:64px;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden;}
+  .mrow .mbar span{display:block;height:100%;background:var(--accent);}
+  .methodology-block .mnote{font-size:.82rem;color:var(--muted);margin:.9rem 0 0;}
+
+  footer{
+    margin-top:2.2rem;padding-top:1rem;border-top:1px solid var(--line);
+    font-size:.76rem;color:var(--muted);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  }
+
+  @media (max-width:640px){
+    .checker-row{flex-direction:column;}
+    .checker button{width:100%;}
+    .report-head{flex-direction:column;}
+    .score-tile{text-align:left;}
+    footer{flex-direction:column;}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Launch Check</h1>
-  <p class="lede">Paste your Steam or itch.io store page. Get back a scored report on what's holding it back.</p>
-  <form id="f">
-    <input type="text" id="url" placeholder="https://store.steampowered.com/app/... or https://you.itch.io/game" required>
-    <button id="go">Check my page</button>
-  </form>
-  <p class="hint">No account needed. Nothing is saved.</p>
-  <div class="error" id="error"></div>
-  <div id="report">
-    <p class="score" id="score"></p>
-    <p class="score-label" id="scoreLabel"></p>
-    <h2>Checklist</h2>
-    <div id="checklist"></div>
-    <h2>Fixes ranked by impact</h2>
-    <div id="fixes"></div>
+
+  <div class="masthead">
+    <div class="wordmark">Launch<span class="dot">·</span>Check</div>
+    <div class="tagline">Steam &amp; itch.io store page audit</div>
   </div>
-  <footer class="disclaimer">Launch Check is an independent tool and is not affiliated with, endorsed by, or sponsored by Valve Corporation or itch.io.</footer>
+
+  <div class="trust-strip">
+    <span><span class="tick">✓</span> No account or signup</span>
+    <span><span class="tick">✓</span> Free, no payment anywhere on this page</span>
+    <span><span class="tick">✓</span> Not affiliated with Valve or itch.io</span>
+  </div>
+
+  <div class="checker">
+    <form id="f">
+      <div class="checker-row">
+        <input type="text" id="url" placeholder="https://store.steampowered.com/app/... or https://you.itch.io/game" required>
+        <button id="go" type="submit">Check page</button>
+      </div>
+    </form>
+    <div class="howitworks">
+      <div class="step"><b>1</b> Paste your store link</div>
+      <div class="step"><b>2</b> We read the public page Steam or itch.io already shows anyone</div>
+      <div class="step"><b>3</b> Get a scored report back — <a href="#methodology">see exactly how it's scored</a></div>
+    </div>
+  </div>
+
+  <div id="result">
+    <div class="error-card" id="errorCard" style="display:none;">
+      <span class="emark">!</span>
+      <p id="errorText"></p>
+    </div>
+
+    <div class="report" id="reportCard" style="display:none;">
+      <div class="report-head">
+        <div>
+          <p class="title" id="rTitle"></p>
+          <p class="source" id="rSource"></p>
+        </div>
+        <div class="score-tile">
+          <span class="num mono" id="rScore"></span><span class="denom mono">/100</span>
+          <p class="verdict" id="rVerdict"></p>
+        </div>
+      </div>
+
+      <div class="provenance">
+        <span class="pdot"></span>
+        <span id="rProvenance"></span>
+      </div>
+
+      <div class="checklist" id="rChecklist"></div>
+
+      <div class="compare" id="rCompare" style="display:none;">
+        <h4 id="rCompareHead"></h4>
+        <table class="cmp" id="rCompareTable"></table>
+      </div>
+    </div>
+
+    <div class="fixes-block" id="fixesCard" style="display:none;">
+      <h4>Fixes ranked by impact</h4>
+      <div id="rFixes"></div>
+    </div>
+  </div>
+
+  <div class="methodology-block" id="methodology">
+    <h4>How the score is worked out</h4>
+    <div class="mrow"><span class="mname">Screenshots</span><span class="mbar"><span style="width:100%"></span></span><span class="mweight">weight 20 · 8+ scores full, 4-7 partial, under 4 none</span></div>
+    <div class="mrow"><span class="mname">Trailer</span><span class="mbar"><span style="width:100%"></span></span><span class="mweight">weight 20 · one video is enough</span></div>
+    <div class="mrow"><span class="mname">Reviews</span><span class="mbar"><span style="width:100%"></span></span><span class="mweight">weight 20 · reflects reception, doesn't lower a fix list</span></div>
+    <div class="mrow"><span class="mname">Tags &amp; genres</span><span class="mbar"><span style="width:75%"></span></span><span class="mweight">weight 15 · 4+ scores full, 2-3 partial</span></div>
+    <div class="mrow"><span class="mname">Description</span><span class="mbar"><span style="width:75%"></span></span><span class="mweight">weight 15 · 800+ characters scores full</span></div>
+    <div class="mrow"><span class="mname">Capsule art</span><span class="mbar"><span style="width:50%"></span></span><span class="mweight">weight 10 · present or missing</span></div>
+    <p class="mnote">The overall score is these six weighted together. Where a "similar games" comparison is available (Steam only, for now), the advice text uses that comparison's real average instead of a fixed rule of thumb.</p>
+  </div>
+
+  <footer>
+    <span>Launch Check is an independent tool and is not affiliated with, endorsed by, or sponsored by Valve Corporation or itch.io.</span>
+    <span class="mono">v1</span>
+  </footer>
+
 </div>
 <script>
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function sourceLabel(url) {
+  if (url.includes('store.steampowered.com')) return 'Steam';
+  if (url.includes('itch.io')) return 'itch.io';
+  return 'the store page';
+}
+
+function shortUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname + u.pathname.replace(/\/$/, '');
+  } catch (e) {
+    return url;
+  }
+}
+
+function statusClass(status) {
+  return status === 'done' ? 'good' : status === 'weak' ? 'warn' : 'bad';
+}
+
+function verdictText(n) {
+  if (n === 0) return 'Nothing holding it back';
+  const words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+  const word = words[n] || n;
+  return `${word} thing${n === 1 ? '' : 's'} holding it back`;
+}
+
+function scoreClass(score) {
+  return score >= 80 ? 'good' : score >= 50 ? 'warn' : 'bad';
+}
+
+const COMPARE_ROWS = [
+  { key: 'screenshot_count', label: 'Screenshots' },
+  { key: 'trailer_count', label: 'Trailers' },
+  { key: 'tag_count', label: 'Tags set' },
+];
+
 const f = document.getElementById('f');
+const result = document.getElementById('result');
+const errorCard = document.getElementById('errorCard');
+const errorText = document.getElementById('errorText');
+const reportCard = document.getElementById('reportCard');
+const fixesCard = document.getElementById('fixesCard');
+
 f.addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = document.getElementById('url').value.trim();
   const go = document.getElementById('go');
-  const err = document.getElementById('error');
-  const report = document.getElementById('report');
-  err.textContent = ''; report.style.display = 'none';
+
+  result.classList.remove('visible');
+  errorCard.style.display = 'none';
+  reportCard.style.display = 'none';
+  fixesCard.style.display = 'none';
   go.disabled = true; go.textContent = 'Checking...';
+
   try {
     const res = await fetch('/analyze?url=' + encodeURIComponent(url));
     const data = await res.json();
-    if (!res.ok) { err.textContent = data.error || 'Something went wrong.'; return; }
-    document.getElementById('score').textContent = data.overall_score + '/100';
-    document.getElementById('scoreLabel').textContent = data.title;
-    const cl = document.getElementById('checklist');
-    cl.innerHTML = data.checklist.map(c => `
-      <div class="check"><div class="dot ${c.status}"></div>
-        <div><b>${c.label}</b><span>${c.detail}</span>${c.advice ? `<span class="advice">${c.advice}</span>` : ''}</div></div>
+    result.classList.add('visible');
+
+    if (!res.ok) {
+      errorText.innerHTML = `<strong>${escapeHtml(data.error || 'Something went wrong.')}</strong>`;
+      errorCard.style.display = 'flex';
+      return;
+    }
+
+    document.getElementById('rTitle').textContent = data.title;
+    document.getElementById('rSource').innerHTML =
+      `Read from <a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(shortUrl(url))}</a> just now`;
+
+    const scoreEl = document.getElementById('rScore');
+    scoreEl.textContent = data.overall_score;
+    scoreEl.className = `num mono ${scoreClass(data.overall_score)}`;
+    document.getElementById('rVerdict').textContent = verdictText(data.ranked_fixes.length);
+
+    const src = sourceLabel(url);
+    document.getElementById('rProvenance').textContent =
+      `Every figure below is pulled live from ${src}'s own public store data for this page — nothing estimated, nothing guessed.`;
+
+    document.getElementById('rChecklist').innerHTML = data.checklist.map(c => `
+      <div class="crow ${statusClass(c.status)}">
+        <div class="stripe"></div>
+        <div class="crow-main">
+          <div class="crow-top"><span class="crow-label">${escapeHtml(c.label)}</span><span class="pill ${statusClass(c.status)}">${escapeHtml(c.status)}</span></div>
+          <div class="crow-detail">${escapeHtml(c.detail)}</div>
+          ${c.advice ? `<div class="crow-advice">${escapeHtml(c.advice)}</div>` : ''}
+        </div>
+      </div>
     `).join('');
-    const fx = document.getElementById('fixes');
-    fx.innerHTML = data.ranked_fixes.length
-      ? data.ranked_fixes.map(f => `<div class="fix"><b>${f.label}</b><span>${f.detail}</span>${f.advice ? `<span class="advice">${f.advice}</span>` : ''}</div>`).join('')
-      : '<p class="hint">Nothing to fix - every checked factor is in good shape.</p>';
-    report.style.display = 'block';
+
+    const cmpSection = document.getElementById('rCompare');
+    if (data.comparison) {
+      const cmp = data.comparison;
+      document.getElementById('rCompareHead').textContent =
+        `Against ${cmp.compared_against.length} similar game${cmp.compared_against.length === 1 ? '' : 's'} in this comparison`;
+      const rows = COMPARE_ROWS.map(r => {
+        const entry = cmp[r.key];
+        if (!entry || entry.similar_avg === null || entry.similar_avg === undefined) return '';
+        const behind = entry.this_game < entry.similar_avg ? ' behind' : '';
+        return `<tr><td>${escapeHtml(r.label)}</td><td class="num${behind}">${entry.this_game}</td><td class="num">${entry.similar_avg}</td></tr>`;
+      }).join('');
+      document.getElementById('rCompareTable').innerHTML =
+        `<tr><th>Factor</th><th>This page</th><th>Similar average</th></tr>${rows}`;
+      cmpSection.style.display = rows ? 'block' : 'none';
+    } else {
+      cmpSection.style.display = 'none';
+    }
+
+    reportCard.style.display = 'block';
+
+    if (data.ranked_fixes.length) {
+      document.getElementById('rFixes').innerHTML = data.ranked_fixes.map(fx => `
+        <div class="fix-row"><b>${escapeHtml(fx.label)}</b><span>${escapeHtml(fx.detail)}</span></div>
+      `).join('');
+    } else {
+      document.getElementById('rFixes').innerHTML = '<p class="fixes-empty">Nothing to fix - every checked factor is in good shape.</p>';
+    }
+    fixesCard.style.display = 'block';
+
   } catch (e2) {
-    err.textContent = 'Something went wrong reaching the server.';
+    result.classList.add('visible');
+    errorText.innerHTML = '<strong>Something went wrong reaching the server.</strong>';
+    errorCard.style.display = 'flex';
   } finally {
-    go.disabled = false; go.textContent = 'Check my page';
+    go.disabled = false; go.textContent = 'Check page';
   }
 });
 </script>
